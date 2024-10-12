@@ -10,13 +10,6 @@ const Navbar = () => {
           BSA x SUI Starter Pack
         </Link>
       </div>
-      <div className="navbar-center">
-        <ul className="menu menu-horizontal px-1 space-x-2">
-          <li>
-            <Link to="/Cookie" className="btn btn-base-100 text-lg normal-case hover:scale-110 transition-transform duration-200">Cookie</Link>
-          </li>
-        </ul>
-      </div>
       <div className="navbar-end">
         <ConnectButton />
       </div>
