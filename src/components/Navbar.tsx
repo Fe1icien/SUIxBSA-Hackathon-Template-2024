@@ -13,16 +13,7 @@ const Navbar = () => {
       <div className="navbar-center">
         <ul className="menu menu-horizontal px-1 space-x-2">
           <li>
-            <Link to="/" className="btn btn-base-100 text-lg normal-case hover:scale-110 transition-transform duration-200">Home</Link>
-          </li>
-          <li>            
-          <Link to="/NFT" className="btn btn-base-100 text-lg normal-case hover:scale-110 transition-transform duration-200">NFT</Link>
-          </li>
-          <li>
-            <Link to="/Debug" className="btn btn-base-100 text-lg normal-case hover:scale-110 transition-transform duration-200">Debug</Link>
-          </li>
-          <li>
-            <Link to="/Contract" className="btn btn-base-100 text-lg normal-case hover:scale-110 transition-transform duration-200">Contract</Link>
+            <Link to="/Cookie" className="btn btn-base-100 text-lg normal-case hover:scale-110 transition-transform duration-200">Cookie</Link>
           </li>
         </ul>
       </div>
