@@ -2,11 +2,12 @@ import { useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@
 import { Transaction } from "@mysten/sui/transactions";
 import { useNetworkVariable } from "../networkConfig";
 import { TREASURY_CAP_OBJECT_ID } from "../constants";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function Cookie() {
   const cookiePackageId = useNetworkVariable("counterPackageId");
   const [mintAmount, setMintAmount] = useState("");
+  const [balance, setBalance] = useState<number | null>(null);
   const currentAccount = useCurrentAccount();
   const suiClient = useSuiClient();
 
@@ -47,6 +48,7 @@ export function Cookie() {
         onSuccess: () => {
           console.log("Minted successfully");
           setMintAmount("");
+          fetchBalance(); // Refresh balance after minting
         },
         onError: (error) => {
           console.error("Error during minting:", error);
@@ -55,10 +57,88 @@ export function Cookie() {
     );
   };
 
+  const get_balance = async (): Promise<number> => {
+    if (!currentAccount?.address) {
+      console.error("No connected account found");
+      return 0;
+    }
+
+    try {
+      // Create a transaction to call the get_balance function
+      const tx = new Transaction();
+
+      tx.moveCall({
+        target: `${cookiePackageId}::cookie::get_balance`,
+        typeArguments: [],
+        arguments: [
+          tx.pure.address(currentAccount.address),
+          tx.object(TREASURY_CAP_OBJECT_ID), // Assuming COOKIE struct is tied to TreasuryCap
+        ],
+      });
+
+      const response = await suiClient.executeTransactionBlock({
+        transactionBlock: tx,
+        options: {
+          showEffects: true,
+          showEvent: true,
+        },
+      });
+
+      // Parse the returned balance from the transaction effects or events
+      // This depends on how the get_balance function returns data
+      // For simplicity, assume it emits an event with the balance
+
+      // Implement event parsing logic here
+      // This is a placeholder as actual implementation may vary
+      const balance = 0; // Replace with actual parsing
+
+      return balance;
+    } catch (error) {
+      console.error("Failed to fetch balance:", error);
+      return 0;
+    }
+  };
+
+  const fetchBalance = async () => {
+    if (!currentAccount?.address) {
+      console.error("No connected account found");
+      return;
+    }
+
+    try {
+      const coins = await suiClient.getCoins({
+        owner: currentAccount.address,
+        coinType: `${cookiePackageId}::cookie::COOKIE`,
+      });
+
+      if (coins && coins.data && Array.isArray(coins.data)) {
+        const totalBalance = coins.data.reduce((sum, coin) => sum + BigInt(coin.balance), 0n);
+        setBalance(Number(totalBalance));
+      } else {
+        console.error("Unexpected response format from getCoins");
+        setBalance(0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch balance:", error);
+      setBalance(0);
+    }
+  };
+
+  useEffect(() => {
+    if (currentAccount?.address) {
+      fetchBalance();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentAccount]);
+
   return (
-    <div className="max-w-md mx-auto p-4 mt-20">
+    <div className="w-full max-w-md p-4">
       <h1 className="text-3xl font-bold mb-4">Cookie Minter</h1>
       <div className="flex flex-col gap-2">
+        <div className="mb-4">
+          <strong>Current Balance:</strong>{" "}
+          {balance !== null ? `${balance} COOKIE` : "Loading..."}
+        </div>
         <input
           type="number"
           value={mintAmount}
