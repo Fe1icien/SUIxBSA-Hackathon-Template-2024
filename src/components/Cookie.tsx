@@ -4,9 +4,8 @@ import { useNetworkVariable } from "../networkConfig";
 import { TREASURY_CAP_OBJECT_ID } from "../constants";
 import { useState, useEffect } from "react";
 
-export function Cookie() {
+export function Cookie({ mintAmount, setMintAmount }) {
   const cookiePackageId = useNetworkVariable("counterPackageId");
-  const [mintAmount, setMintAmount] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
   const currentAccount = useCurrentAccount();
   const suiClient = useSuiClient();
@@ -47,7 +46,7 @@ export function Cookie() {
       {
         onSuccess: () => {
           console.log("Minted successfully");
-          setMintAmount("");
+          setMintAmount(0); // Reset mintAmount after minting
           fetchBalance(); // Refresh balance after minting
         },
         onError: (error) => {
@@ -132,7 +131,7 @@ export function Cookie() {
   }, [currentAccount]);
 
   return (
-    <div className="w-full max-w-md p-4">
+    <div className="max-w-md mx-auto p-4">
       <h1 className="text-3xl font-bold mb-4">Cookie Minter</h1>
       <div className="flex flex-col gap-2">
         <div className="mb-4">
@@ -142,7 +141,7 @@ export function Cookie() {
         <input
           type="number"
           value={mintAmount}
-          onChange={(e) => setMintAmount(e.target.value)}
+          onChange={(e) => setMintAmount(Number(e.target.value))}
           placeholder="Amount to mint"
           className="w-full p-2 mb-2 border rounded"
         />

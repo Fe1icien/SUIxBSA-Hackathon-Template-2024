@@ -2163,4 +2163,59 @@ html {
   }
 }
   
-  
+
+
+/* Add this to your CSS file */
+.clickable-cookie {
+  transition: transform 0.1s ease-in-out;
+}
+
+.clickable-cookie:active {
+  transform: scale(0.95);
+}
+
+@keyframes explode {
+  0% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(calc(var(--x) * 1.5), calc(var(--y) * 1.5));
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(calc(var(--x) * 1.5), 10px); /* Spread out and fall down */
+    opacity: 0;
+  }
+}
+
+.particle {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background-color: #000;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: explode 0.5s forwards; /* Reduce duration to 0.5s */
+}
+
+.plus-one {
+  position: absolute;
+  color: #ffffff; /* White color */
+  font-size: 16px;
+  font-weight: bold; /* Make it bold */
+  user-select: none; /* Make it non-selectable */
+  animation: moveUpFadeOut 1s forwards;
+  pointer-events: none; /* Ensure it doesn't interfere with clicking */
+}
+
+@keyframes moveUpFadeOut {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}
