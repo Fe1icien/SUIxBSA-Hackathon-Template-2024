@@ -1,14 +1,13 @@
 module counter::cookie {
-    use sui::coin::{Self, TreasuryCap};
+    use sui::coin::{Self, Coin, TreasuryCap};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use std::option;
     use sui::object::{Self, UID};
-    use sui::balance::Balance;
 
     public struct COOKIE has drop {}
 
-    public fun init(witness: COOKIE, ctx: &mut TxContext) {
+    fun init(witness: COOKIE, ctx: &mut TxContext) {
         let (treasury_cap, metadata) = coin::create_currency(
             witness, 
             0, 
@@ -32,4 +31,21 @@ module counter::cookie {
         transfer::public_transfer(cookie, recipient);
     }
 
+    public fun get_coin(
+        treasury_cap: &mut TreasuryCap<COOKIE>,
+        amount: u64,
+        ctx: &mut TxContext
+    ): Coin<COOKIE> {
+        coin::mint(treasury_cap, amount, ctx)
+    }
+
+    public entry fun burn(
+        treasury_cap: &mut TreasuryCap<COOKIE>,
+        coin: &mut Coin<COOKIE>,
+        amount: u64,
+        ctx: &mut TxContext
+    ) {
+        let burned_coin = coin::split(coin, amount, ctx);
+        coin::burn(treasury_cap, burned_coin);
+    }
 }
