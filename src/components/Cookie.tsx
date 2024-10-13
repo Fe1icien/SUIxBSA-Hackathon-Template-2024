@@ -1,5 +1,6 @@
 import { useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
+import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { useNetworkVariable } from "../networkConfig";
 import { TREASURY_CAP_OBJECT_ID } from "../constants";
 import { useState, useEffect } from "react";
@@ -10,17 +11,7 @@ export function Cookie({ mintAmount, setMintAmount }) {
   const currentAccount = useCurrentAccount();
   const suiClient = useSuiClient();
 
-  const { mutate: signAndExecute } = useSignAndExecuteTransaction({
-    execute: async ({ bytes, signature }) =>
-      await suiClient.executeTransactionBlock({
-        transactionBlock: bytes,
-        signature,
-        options: {
-          showRawEffects: true,
-          showEffects: true,
-        },
-      }),
-  });
+  const { mutate: signAndExecute } = useSignAndExecuteTransaction();
 
   const mint = () => {
     if (!mintAmount || parseInt(mintAmount) <= 0) {
@@ -130,6 +121,91 @@ export function Cookie({ mintAmount, setMintAmount }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentAccount]);
 
+  const buyUpgrade = async (amountToBurn: number) => {
+    const cookieObjects = await suiClient.getCoins({
+      owner: currentAccount.address,
+      coinType: `${cookiePackageId}::cookie::COOKIE`,
+    });
+
+    if (!cookieObjects || !cookieObjects.data || cookieObjects.data.length === 0) {
+      console.error("No COOKIE objects found");
+      return;
+    }
+
+    console.log("Retrieved COOKIE objects:", cookieObjects);
+    let totalAvailable = 0n;
+    const objectsToBurn = [];
+
+    for (const coin of cookieObjects.data) {
+      console.log("Coin object:", coin);
+      const coinBalance = BigInt(coin.balance);
+      totalAvailable += coinBalance;
+      objectsToBurn.push({
+        objectId: coin.coinObjectId,
+        balance: coinBalance,
+      });
+    }
+    console.log("Amount to Burn:", amountToBurn);
+    const amountToBurnBigInt = BigInt(amountToBurn);
+    if (totalAvailable < amountToBurnBigInt) {
+      console.error("Insufficient COOKIE balance");
+      return;
+    }
+
+    const tx = new TransactionBlock();
+    let amountRemaining = amountToBurnBigInt;
+
+    for (const { objectId, balance } of objectsToBurn) {
+      if (amountRemaining <= 0n) break;
+
+      const amountToUse = amountRemaining > balance ? balance : amountRemaining;
+
+      console.log(`Burning ${amountToUse} from objectId: ${objectId}`);
+
+      tx.moveCall({
+        target: `${cookiePackageId}::cookie::burn`,
+        arguments: [
+          tx.object(TREASURY_CAP_OBJECT_ID),
+          tx.object(objectId),
+          tx.pure.u64(Number(amountToUse)),
+        ],
+      });
+
+      amountRemaining -= amountToUse;
+    }
+
+    // Create a move call to mint the upgrade
+    tx.moveCall({
+      target: `${cookiePackageId}::upgrade::mint_upgrade`,
+      arguments: [
+        tx.object(TREASURY_CAP_OBJECT_ID),
+        tx.pure.u64(amountToBurn),
+        tx.pure.string("Upgrade Name"),
+        tx.pure.u64(2),
+        tx.pure.string("image_url"),
+      ],
+    });
+
+    console.log("Transaction to be executed:", tx);
+
+    try {
+      const result = await signAndExecute({
+        transaction: tx,
+      });
+
+      console.log("Transaction result:", result);
+
+      if (result && result.digest) {
+        console.log("Upgrade purchased successfully. Transaction digest:", result.digest);
+        fetchBalance();
+      } else {
+        console.error("Transaction executed but returned an unexpected result:", result);
+      }
+    } catch (error) {
+      console.error("Error purchasing upgrade:", error);
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto p-4">
       <h1 className="text-3xl font-bold mb-4">Cookie Minter</h1>
@@ -137,19 +213,21 @@ export function Cookie({ mintAmount, setMintAmount }) {
         <div className="mb-4">
           <strong>Current Balance:</strong>{" "}
           {balance !== null ? `${balance} COOKIE` : "Loading..."}
+          {mintAmount > 0 && (
+            <span style={{ color: '#1E90FF', fontWeight: 'bold' }}> + {mintAmount}</span>
+          )}
         </div>
-        <input
-          type="number"
-          value={mintAmount}
-          onChange={(e) => setMintAmount(Number(e.target.value))}
-          placeholder="Amount to mint"
-          className="w-full p-2 mb-2 border rounded"
-        />
         <button
           className="btn btn-primary w-full"
           onClick={mint}
         >
           Mint
+        </button>
+        <button
+          className="btn btn-secondary w-full mt-4"
+          onClick={() => buyUpgrade(1)} // Pass a fixed amount or use a state variable
+        >
+          Buy Upgrade (1 COOKIE)
         </button>
       </div>
     </div>
