@@ -133,77 +133,45 @@ export function Cookie({ mintAmount, setMintAmount }) {
     }
 
     console.log("Retrieved COOKIE objects:", cookieObjects);
-    let totalAvailable = 0n;
-    const objectsToBurn = [];
+    let remainingAmountToBurn = amountToBurn;
 
     for (const coin of cookieObjects.data) {
-      console.log("Coin object:", coin);
-      const coinBalance = BigInt(coin.balance);
-      totalAvailable += coinBalance;
-      objectsToBurn.push({
-        objectId: coin.coinObjectId,
-        balance: coinBalance,
-      });
-    }
-    console.log("Amount to Burn:", amountToBurn);
-    const amountToBurnBigInt = BigInt(amountToBurn);
-    if (totalAvailable < amountToBurnBigInt) {
-      console.error("Insufficient COOKIE balance");
-      return;
-    }
+      if (remainingAmountToBurn <= 0) break;
 
-    const tx = new TransactionBlock();
-    let amountRemaining = amountToBurnBigInt;
+      const coinBalance = Number(coin.balance);
+      const amountToBurnFromCoin = Math.min(coinBalance, remainingAmountToBurn);
 
-    for (const { objectId, balance } of objectsToBurn) {
-      if (amountRemaining <= 0n) break;
-
-      const amountToUse = amountRemaining > balance ? balance : amountRemaining;
-
-      console.log(`Burning ${amountToUse} from objectId: ${objectId}`);
-
+      const tx = new Transaction();
       tx.moveCall({
         target: `${cookiePackageId}::cookie::burn`,
         arguments: [
           tx.object(TREASURY_CAP_OBJECT_ID),
-          tx.object(objectId),
-          tx.pure.u64(Number(amountToUse)),
+          tx.object(coin.coinObjectId),
+          tx.pure.u64(amountToBurnFromCoin),
         ],
       });
 
-      amountRemaining -= amountToUse;
-    }
+      try {
+        const result = await signAndExecute({
+          transaction: tx,
+        });
 
-    // Create a move call to mint the upgrade
-    tx.moveCall({
-      target: `${cookiePackageId}::upgrade::mint_upgrade`,
-      arguments: [
-        tx.object(TREASURY_CAP_OBJECT_ID),
-        tx.pure.u64(amountToBurn),
-        tx.pure.string("Upgrade Name"),
-        tx.pure.u64(2),
-        tx.pure.string("image_url"),
-      ],
-    });
+        console.log(`Burned ${amountToBurnFromCoin} COOKIE from object ${coin.coinObjectId}`);
+        console.log("Transaction result:", result);
 
-    console.log("Transaction to be executed:", tx);
-
-    try {
-      const result = await signAndExecute({
-        transaction: tx,
-      });
-
-      console.log("Transaction result:", result);
-
-      if (result && result.digest) {
-        console.log("Upgrade purchased successfully. Transaction digest:", result.digest);
-        fetchBalance();
-      } else {
-        console.error("Transaction executed but returned an unexpected result:", result);
+        remainingAmountToBurn -= amountToBurnFromCoin;
+      } catch (error) {
+        console.error(`Error burning COOKIE from object ${coin.coinObjectId}:`, error);
       }
-    } catch (error) {
-      console.error("Error purchasing upgrade:", error);
     }
+
+    if (remainingAmountToBurn > 0) {
+      console.error(`Could not burn full amount. Remaining: ${remainingAmountToBurn} COOKIE`);
+    } else {
+      console.log(`Successfully burned ${amountToBurn} COOKIE`);
+    }
+
+    fetchBalance();
   };
 
   return (
